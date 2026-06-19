@@ -7,7 +7,7 @@ from ultralytics import YOLO
 # ==========================================
 # 경로 설정
 # ==========================================
-# 실행 파일(__file__) 위치 기준으로 상위 폴더 구조를 자동 계산합니다.
+# 실행 파일(__file__) 위치 기준으로 상위 폴더 구조를 자동 계산
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 MODEL_PATH = BASE_DIR / "models" / "best.pt"
@@ -47,28 +47,33 @@ def extract_text_from_button(cropped_image):
 
 
 # ==========================================
-#  상황 분석 및 가이드 생성 함수
+# 상황 분석 및 가이드 생성 함수
 # ==========================================
 def generate_guide(detected, payment_buttons_text):
+    guide_text = "Guide: Analyzing..."  # 기본 가이드 초기화
+
     if "payment_button" in detected and "cart_area" in detected:
-        # 결제 관련 키워드가 하나라도 포함되어 있는지 검사
-        if any(
-            keyword in text
-            for text in payment_buttons_text
-            for keyword in ["결제", "결제하기"]
-        ):
-            return "Guide: Touch the PAYMENT button below."
-        return "Guide: Check your cart and payment."
+        print("\n현재 단계: 장바구니 확인 및 결제 단계")
+        guide_text = "Guide: Check your cart and payment!"
+        
+        # 전과 똑같이 "결제" 또는 "결제하기" 글자가 포함되어 있는지 체크
+        if "결제" in payment_buttons_text or "결제하기" in payment_buttons_text:
+            print("💡 가이드 안내: '결제하기' 버튼을 누르도록 강조하세요.")
+            guide_text = "Guide: Touch the [PAYMENT] button below!"
 
     elif "menu_area" in detected:
-        return "Guide: Choose your menu from the screen."
+        print("\n현재 단계: 메뉴 선택 단계")
+        guide_text = "Guide: Choose your menu from the screen."
 
     elif "back_button" in detected:
-        return "Guide: You can go back to the previous page."
+        print("\n현재 단계: 이전 화면 이동 가능")
+        guide_text = "Guide: You can go back to the previous page."
 
-    return "Guide: Follow the instructions on the screen."
+    else:
+        print("\n현재 단계: 알 수 없음 (안내 및 카드 삽입 지시 화면 등)")
+        guide_text = "Guide: Follow the instructions on the screen."
 
-
+    return guide_text
 # ==========================================
 # 메인 실행 파이프라인
 # ==========================================
