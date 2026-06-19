@@ -52,20 +52,55 @@ print("==============================")
 
 
 # ----------------------
-# 상황 판단 로직 (OCR 데이터 활용하도록 업그레이드 가능!)
+# 상황 판단 로직
 # ----------------------
+guide_text = "Guide: Analyzing..."  # 시각화 화면에 띄울 안내 멘트 변수
 
 if "payment_button" in detected and "cart_area" in detected:
     print("\n현재 단계: 장바구니 확인 및 결제 단계")
-    # 업그레이드 팁: "결제"라는 글자가 버튼 목록에 있으면 진짜 최종 결제창이라고 확신 가능!
+    guide_text = "Guide: Check your cart and payment!"
     if "결제" in payment_buttons_text or "결제하기" in payment_buttons_text:
         print("💡 가이드 안내: '결제하기' 버튼을 누르도록 강조하세요.")
+        guide_text = "Guide: Touch the [PAYMENT] button below!"
 
 elif "menu_area" in detected:
     print("\n현재 단계: 메뉴 선택 단계")
+    guide_text = "Guide: Choose your menu from the screen."
 
 elif "back_button" in detected:
     print("\n현재 단계: 이전 화면 이동 가능")
+    guide_text = "Guide: You can go back to the previous page."
 
 else:
     print("\n현재 단계: 알 수 없음 (안내 및 카드 삽입 지시 화면 등)")
+    guide_text = "Guide: Follow the instructions on the screen."
+
+
+# ----------------------
+# [여기서부터 새로 추가된 시각화 섹션!]
+# ----------------------
+print("\n[시각화 작업 시작] 이미지 위에 안내선과 가이드를 그립니다...")
+
+# 1. YOLO가 검출한 모든 상자 화면에 그리기
+for box in results[0].boxes:
+    x1, y1, x2, y2 = map(int, box.xyxy[0])
+    cls = int(box.cls)
+    label = results[0].names[cls]
+    
+    # 초록색 사각형(BGR: 0, 255, 0) 두께 3으로 그리기
+    cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 3)
+    # 사각형 위에 라벨 이름 쓰기
+    cv2.putText(img, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+
+# 2. 화면 맨 밑에 할머니가 보기 편하게 '검은색 안내 자막 바' 깔기
+h, w, c = img.shape
+cv2.rectangle(img, (0, h - 80), (w, h), (0, 0, 0), -1)  # -1은 내부를 꽉 채운다는 뜻
+
+# 3. 상황 판단 결과에 맞게 갱신된 guide_text를 검은 바 위에 흰색 글씨로 쓰기
+cv2.putText(img, guide_text, (20, h - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+
+# 4. 가이드가 완성된 이미지를 새 파일로 저장하기
+output_path = "../images/result_guide.jpg"
+cv2.imwrite(output_path, img)
+
+print(f"🎯 성공! 시각화 완료 이미지가 '{output_path}'에 저장되었습니다.")
