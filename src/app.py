@@ -1,9 +1,8 @@
 import streamlit as st
 from PIL import Image
 from gtts import gTTS
-import os
-import subprocess
 from pathlib import Path
+import subprocess
 
 st.set_page_config(
     page_title="AI 키오스크 도우미",
@@ -11,6 +10,9 @@ st.set_page_config(
     layout="wide"
 )
 
+# ==========================================
+# 경로 설정
+# ==========================================
 BASE_DIR = Path(__file__).resolve().parent
 ROOT_DIR = BASE_DIR.parent
 
@@ -18,19 +20,29 @@ IMAGE_DIR = ROOT_DIR / "images"
 AUDIO_DIR = BASE_DIR / "audio"
 
 TEST_IMAGE_PATH = IMAGE_DIR / "test.png"
-RESULT_IMAGE_PATH = IMAGE_DIR / "result_guide.jpg"
 
 IMAGE_DIR.mkdir(exist_ok=True)
 AUDIO_DIR.mkdir(exist_ok=True)
 
 
+# ==========================================
+# TTS 생성
+# ==========================================
 def make_tts(text):
     audio_path = AUDIO_DIR / "guide.mp3"
-    tts = gTTS(text=text, lang="ko")
+
+    tts = gTTS(
+        text=text,
+        lang="ko"
+    )
+
     tts.save(str(audio_path))
     return audio_path
 
 
+# ==========================================
+# detect.py 실행
+# ==========================================
 def run_detect():
     result = subprocess.run(
         ["python", "detect.py"],
@@ -39,9 +51,13 @@ def run_detect():
         text=True,
         encoding="utf-8"
     )
+
     return result.stdout, result.stderr, result.returncode
 
 
+# ==========================================
+# GPT 결과 추출
+# ==========================================
 def extract_guide_text(stdout):
     marker = "[생성된 가이드 자막]"
 
@@ -50,62 +66,189 @@ def extract_guide_text(stdout):
         guide = guide.split("\n🎯")[0].strip()
         return guide
 
-    return "화면 분석이 완료되었습니다. 화면에 표시된 안내를 확인해 주세요."
+    return "화면을 분석하고 있습니다."
 
 
-st.title("🧾 AI 키오스크 도우미")
-st.write("키오스크 화면을 분석하여 쉬운 안내문과 음성 안내를 제공합니다.")
+# ==========================================
+# UI 스타일
+# ==========================================
+st.markdown("""
+<style>
+
+.main-title{
+    font-size:42px;
+    font-weight:800;
+    margin-bottom:5px;
+}
+
+.sub-title{
+    font-size:20px;
+    color:#555;
+    margin-bottom:25px;
+}
+
+.guide-box{
+    background-color:#F0F7FF;
+    border:2px solid #CDE5FF;
+    border-radius:18px;
+    padding:30px;
+
+    font-size:26px;
+    font-weight:600;
+    line-height:1.8;
+}
+
+.step-box{
+    background-color:#FFF7E6;
+    border:2px solid #FFE1A8;
+    border-radius:14px;
+    padding:16px;
+
+    font-size:22px;
+    font-weight:700;
+    margin-bottom:15px;
+}
+
+.help-box{
+    font-size:18px;
+    color:#555;
+    line-height:1.7;
+}
+
+div.stButton > button{
+    width:100%;
+    height:65px;
+
+    font-size:22px;
+    font-weight:700;
+
+    border-radius:12px;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+# ==========================================
+# 헤더
+# ==========================================
+st.markdown(
+    '<div class="main-title">🧾 AI 키오스크 도우미</div>',
+    unsafe_allow_html=True
+)
+
+st.markdown(
+    '<div class="sub-title">키오스크 화면을 쉽게 설명하고 음성으로 안내해 드립니다.</div>',
+    unsafe_allow_html=True
+)
+
 st.markdown("---")
 
+# ==========================================
+# 이미지 업로드
+# ==========================================
 uploaded_file = st.file_uploader(
-    "키오스크 화면 이미지를 업로드하세요.",
+    "키오스크 화면 사진을 선택해 주세요.",
     type=["jpg", "jpeg", "png"]
 )
 
 if uploaded_file is None:
-    st.info("먼저 키오스크 화면 이미지를 업로드해 주세요.")
+
+    st.info(
+        "먼저 키오스크 화면 사진을 올려 주세요."
+    )
 
 else:
+
     image = Image.open(uploaded_file).convert("RGB")
+
     image.save(TEST_IMAGE_PATH)
 
     col1, col2 = st.columns([1, 1])
 
+    # ==========================
+    # 왼쪽 영역
+    # ==========================
     with col1:
-        st.subheader("업로드한 이미지")
-        st.image(image, use_container_width=True)
 
+        st.subheader("📷 선택한 키오스크 화면")
+
+        st.image(
+            image,
+            use_container_width=True
+        )
+
+    # ==========================
+    # 오른쪽 영역
+    # ==========================
     with col2:
-        st.subheader("분석 실행")
-        st.write("아래 버튼을 누르면 YOLO, OCR, GPT 분석을 실행합니다.")
 
-        if st.button("분석 시작"):
-            with st.spinner("키오스크 화면을 분석하는 중입니다..."):
+        st.subheader("🙋 안내 받기")
+
+        st.markdown(
+            """
+            <div class="help-box">
+            버튼을 누르면 현재 화면에서 해야 할 일을
+            쉽고 친절하게 알려드립니다.
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+        if st.button("화면 안내 받기"):
+
+            with st.spinner(
+                "키오스크 화면을 읽고 안내를 준비하고 있어요."
+            ):
+
                 stdout, stderr, returncode = run_detect()
 
             if returncode != 0:
-                st.error("분석 중 오류가 발생했습니다.")
-                st.subheader("오류 내용")
-                st.code(stderr)
+
+                st.error(
+                    "화면을 확인하는 중 문제가 발생했습니다."
+                )
+
+                st.write(
+                    "다른 사진으로 다시 시도해 주세요."
+                )
+
             else:
-                st.success("분석이 완료되었습니다.")
 
                 guide_text = extract_guide_text(stdout)
 
-                st.subheader("📢 최종 안내문")
-                st.info(guide_text)
+                st.success(
+                    "안내가 준비되었습니다."
+                )
 
-                audio_path = make_tts(guide_text)
+                st.markdown(
+                    """
+                    <div class="step-box">
+                    📌 지금 해야 할 일
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
 
-                st.subheader("🔊 음성 안내")
+                st.markdown(
+                    f"""
+                    <div class="guide-box">
+                    {guide_text}
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+                audio_path = make_tts(
+                    guide_text
+                )
+
+                st.subheader(
+                    "🔊 음성으로 듣기"
+                )
+
                 with open(audio_path, "rb") as audio_file:
-                    st.audio(audio_file.read(), format="audio/mp3")
 
-                if RESULT_IMAGE_PATH.exists():
-                    st.subheader("분석 결과 이미지")
-                    st.image(str(RESULT_IMAGE_PATH), use_container_width=True)
-
-                with st.expander("개발자 모드: detect.py 실행 로그 보기"):
-                    st.code(stdout)
-                    if stderr:
-                        st.code(stderr)
+                    st.audio(
+                        audio_file.read(),
+                        format="audio/mp3"
+                    )
